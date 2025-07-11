@@ -46,3 +46,69 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	)
 	return i, err
 }
+
+const createUsers = `-- name: CreateUsers :exec
+CREATE TABLE users (
+    id UUID,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    name TEXT UNIQUE
+)
+`
+
+func (q *Queries) CreateUsers(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, createUsers)
+	return err
+}
+
+const dropUsers = `-- name: DropUsers :exec
+DROP TABLE users
+`
+
+func (q *Queries) DropUsers(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, dropUsers)
+	return err
+}
+
+const getUser = `-- name: GetUser :one
+SELECT id, created_at, updated_at, name FROM users WHERE name = $1
+`
+
+func (q *Queries) GetUser(ctx context.Context, name sql.NullString) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUser, name)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Name,
+	)
+	return i, err
+}
+
+const getUsers = `-- name: GetUsers :many
+SELECT name FROM users
+`
+
+func (q *Queries) GetUsers(ctx context.Context) ([]sql.NullString, error) {
+	rows, err := q.db.QueryContext(ctx, getUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []sql.NullString
+	for rows.Next() {
+		var name sql.NullString
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
