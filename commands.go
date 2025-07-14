@@ -58,13 +58,9 @@ func handlerRegister(s *State, cmd Command) error {
 		os.Exit(1)
 	}
 
-	var id uuid.NullUUID
+	var id uuid.UUID
 
-	err := id.Scan(uuid.New().String())
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	id = uuid.New()
 
 	var CreatedAt sql.NullTime
 	CreatedAt.Scan(time.Now())
@@ -75,7 +71,7 @@ func handlerRegister(s *State, cmd Command) error {
 	var name sql.NullString
 	name.Scan(cmd.arguments[0])
 
-	_, err = s.db.GetUser(context.Background(), name)
+	_, err := s.db.GetUser(context.Background(), name)
 
 	if err == nil {
 		fmt.Println("User already exists")
@@ -137,6 +133,18 @@ func handlerUsers(s *State, cmd Command) error {
 	}
 	return nil
 
+}
+
+func handlerAgg(s *State, cmd Command) error {
+	feed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	fmt.Print(feed)
+	return nil
 }
 
 func (c *Commands) run(s *State, cmd Command) error {

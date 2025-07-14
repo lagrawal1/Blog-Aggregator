@@ -31,6 +31,7 @@ func main() {
 
 	commands.register("reset", handlerReset)
 	commands.register("users", handlerUsers)
+	commands.register("agg", handlerAgg)
 
 	if err != nil {
 		fmt.Println(err)

@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"html"
 	"io"
 	"net/http"
+	"os"
 )
 
 type RSSFeed struct {
@@ -28,10 +30,20 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 
 	var feed RSSFeed
 	req, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	req.Header.Set("User-Agent", "gator")
 
 	client := http.Client{}
 	res, err := client.Do(req)
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	data, err := io.ReadAll(res.Body)
 
