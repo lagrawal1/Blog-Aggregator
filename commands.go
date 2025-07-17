@@ -58,9 +58,7 @@ func handlerRegister(s *State, cmd Command) error {
 		os.Exit(1)
 	}
 
-	var id uuid.UUID
-
-	id = uuid.New()
+	id := uuid.New()
 
 	var CreatedAt sql.NullTime
 	CreatedAt.Scan(time.Now())
@@ -100,7 +98,14 @@ func handlerRegister(s *State, cmd Command) error {
 }
 
 func handlerReset(s *State, cmd Command) error {
-	err := s.db.DropUsers(context.Background())
+	err := s.db.DropTableFeeds(context.Background())
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	err = s.db.DropUsers(context.Background())
 
 	if err != nil {
 		fmt.Println(err)
@@ -108,6 +113,13 @@ func handlerReset(s *State, cmd Command) error {
 	}
 
 	err = s.db.CreateUsers(context.Background())
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	err = s.db.CreateTableFeeds(context.Background())
 
 	if err != nil {
 		fmt.Println(err)
@@ -144,6 +156,127 @@ func handlerAgg(s *State, cmd Command) error {
 	}
 
 	fmt.Print(feed)
+	return nil
+}
+
+func handlerAddFeed(s *State, cmd Command) error {
+
+	if len(cmd.arguments) < 2 {
+		fmt.Println("not enough arguments")
+		os.Exit(1)
+	}
+	feedname_arg := cmd.arguments[0]
+	url_arg := cmd.arguments[1]
+
+	currentUser := s.cfg.CurrentUserName
+	var username sql.NullString
+	username.Scan(currentUser)
+
+	user, err := s.db.GetUser(context.Background(), username)
+
+	var user_fk uuid.NullUUID
+	user_fk.Scan(user.ID.String())
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	id := uuid.New()
+
+	var createdAt sql.NullTime
+	createdAt.Scan(time.Now())
+
+	var updatedAt sql.NullTime
+	updatedAt.Scan(time.Now())
+
+	var url sql.NullString
+	url.Scan(url_arg)
+
+	var feedname sql.NullString
+	feedname.Scan(feedname_arg)
+
+	_, err = s.db.CreateFeed(context.Background(), database.CreateFeedParams{
+
+		ID:        id,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+		Name:      feedname,
+		Url:       url,
+		UserID:    user_fk,
+	},
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return nil
+}
+
+func handlerFeeds(s *State, cmd Command) error {
+	feeds, err := s.db.SelectAllFeeds(context.Background())
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+
+	for _, feed := range feeds {
+		user, err := s.db.GetUserById(context.Background(), feed.UserID.UUID)
+
+		if err != nil {
+			fmt.Print(err)
+			os.Exit(1)
+		}
+		fmt.Println(feed.Name.String)
+		fmt.Println("- URL:", feed.Url.String)
+		fmt.Println("- Username", user.Name.String, "\n")
+	}
+
+	return nil
+}
+
+func handlerFollow(s *State, cmd Command) error {
+	url_arg := cmd.arguments[0]
+	var name sql.NullString
+	name.Scan(s.cfg.CurrentUserName)
+
+	user, err := s.db.GetUser(context.Background(), name)
+
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+	follow_id := uuid.New()
+
+	var created_at sql.NullTime
+	var updated_at sql.NullTime
+
+	created_at.Scan(time.Now())
+	updated_at.Scan(time.Now())
+
+	var user_id uuid.NullUUID
+	user_id.Scan(user.ID.String())
+
+	var feed_id uuid.NullUUID
+	var url sql.NullString
+	url.Scan(url_arg)
+	feed, err := s.db.SelectFeedByURL(context.Background(), url)
+
+	if err != nil {
+		fmt.Print(err)
+		os.Exit(1)
+	}
+
+	feed_id.Scan(feed.ID.String())
+
+	s.db.CreateFeedFollow(context.Background(), database.CreateFeedFollowParams{
+		ID:        follow_id,
+		CreatedAt: created_at,
+		UpdatedAt: updated_at,
+		UserID:    user_id,
+		FeedID:    feed_id,
+	})
+
 	return nil
 }
 
